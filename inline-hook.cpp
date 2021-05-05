@@ -15,24 +15,29 @@ HHANDLE* InlineHook(DWORD hookAddr, HHooker handler, DWORD originLength)
 		return NULL;
 	}
 	DWORD jmpAddr = ((DWORD)handler) - (hookAddr + 5);
-	BYTE jmpCode[5];
+	BYTE *jmpCode = (BYTE*)malloc(sizeof(BYTE)*originLength);
 	*(jmpCode + 0) = 0xE8;
 	*(DWORD *)(jmpCode + 1) = jmpAddr;
-
+	for (int i = 5; i < originLength; i++) {
+		*(jmpCode + i) = 0x90;
+	}
 
 	if (ReadProcessMemory(hProcess, (LPVOID)hookAddr, hHandle->origin, originLength, NULL) == 0) {
 		OutputDebugString(L"[InlineHook] read code fail.");
 		FreeHHandle(hHandle);
 		::CloseHandle(hProcess);
+		free(jmpCode);
 		return NULL;
 	}
-	if (WriteProcessMemory(hProcess, (LPVOID)hookAddr, jmpCode, 5, NULL) == 0) {
+	if (WriteProcessMemory(hProcess, (LPVOID)hookAddr, jmpCode, originLength, NULL) == 0) {
 		OutputDebugString(L"[InlineHook] write code fail.");
 		FreeHHandle(hHandle);
 		::CloseHandle(hProcess);
+		free(jmpCode);
 		return NULL;
 	}
 	::CloseHandle(hProcess);
+	free(jmpCode);
 	return hHandle;
 }
 
